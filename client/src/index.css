@@ -4,19 +4,18 @@
 
 @layer components {
 	.sidebar-icon {
-		@apply relative flex items-center justify-center 
+		@apply relative flex items-center justify-center overflow-hidden 
       h-12 w-12 mt-2 mb-2 mx-auto  
-    bg-gray-400 hover:bg-sky-600 dark:bg-gray-800 
-    text-sky-500 hover:text-white
+	  bg-gray-900
       hover:rounded-xl rounded-3xl
       transition-all duration-150 ease-linear
       cursor-pointer shadow-lg;
 	}
 
 	.sidebar-tooltip {
-		@apply absolute w-auto p-2 m-2 min-w-max left-14 rounded-md shadow-md
+		@apply absolute w-auto p-2 m-2 min-w-max rounded-md left-[70px] shadow-md
       text-white bg-gray-900 
-      transition-all duration-100 scale-0 origin-left font-ggSemibold text-sm;
+      transition-all duration-100 scale-0 origin-left font-ggSemibold text-sm z-50;
 	}
 
 	.sidebar-hr {
@@ -26,8 +25,28 @@
 	}
 
 	.active {
-		@apply rounded-xl text-white bg-sky-600;
+		@apply rounded-xl;
 	}
+	.active-no-img {
+		@apply bg-sky-600 text-white rounded-xl;
+	}
+}
+
+.transparent-scrollbar {
+	scrollbar-color: transparent transparent;
+	scrollbar-width: thin;
+}
+
+.text-rendering {
+	text-rendering: optimizeLegibility;
+}
+
+.transform-style-3d {
+	transform-style: preserve-3d;
+}
+
+.translate-z-0 {
+	transform: translateZ(0);
 }
 
 @font-face {

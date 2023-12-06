@@ -1,25 +1,31 @@
 import { BsPlus } from "react-icons/bs";
-import { FaFire, FaPoo } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
+import { ServerContext } from "../ServerContext";
+import axios from "axios";
 
-const serverdata = [
-	{ id: "Finn kommt zu spät", url: "/zuspät" },
-	{ id: "League", url: "/lol" },
-	{ id: "Dota 2", url: "/dota" },
-	{ id: "Linus Test server", url: "/testserver" },
-];
 export default function SideBar({ openModal, isModalOpen }) {
-	const [selectedServer, setSelectedServer] = useState(null);
 	const [addServerSelected, setAddServerSelected] = useState(false);
 	const [activeAnimation, setActiveAnimation] = useState(null);
-
+	const [serverdata, setServerdata] = useState([]);
+	const { selectedServer, updateSelectedServer } = useContext(ServerContext);
 	useEffect(() => {
 		if (!isModalOpen) {
 			setAddServerSelected(false);
-			setActiveAnimation(null)
+			setActiveAnimation(null);
 		}
 	}, [isModalOpen]);
+
+	useEffect(() => {
+		axios
+			.get("http://localhost:3300/api/servers/list")
+			.then((res) => {
+				setServerdata(res.data);
+			})
+			.catch((err) => {
+				console.error("Error fetching serverinfo");
+			});
+	}, []);
 
 	const handleElementClick = (elementId) => {
 		if (elementId === "addServer") {
@@ -27,7 +33,7 @@ export default function SideBar({ openModal, isModalOpen }) {
 			openModal();
 		} else {
 			setAddServerSelected(false);
-			setSelectedServer(elementId);
+			updateSelectedServer(elementId);
 		}
 		setActiveAnimation(elementId);
 	};
@@ -36,16 +42,18 @@ export default function SideBar({ openModal, isModalOpen }) {
 		return (addServerSelected && elementId === "addServer") || selectedServer === elementId;
 	};
 
-	const SideBarIcon = ({ icon, text, elementId, server }) => (
+	const SideBarIcon = ({ icon, text, elementId, id, url }) => (
 		<div className="relative w-[72]">
-			<Link to={server.url} onClick={() => handleElementClick(server.id)}>
-				<div
-					className={`sidebar-icon group ${selected(elementId) ? "active" : "rounded-3xl"} ${
-						activeAnimation === elementId ? "animate-drop" : ""
-					}`}
-				>
-					{icon}
+			<Link to={`/channels/${url}/`} onClick={() => handleElementClick(id)}>
+				<div className="group">
 					<span className="sidebar-tooltip group-hover:scale-100">{text}</span>
+					<div
+						className={`sidebar-icon ${selected(elementId) ? "active" : "rounded-3xl"} ${
+							activeAnimation === elementId ? "animate-drop" : ""
+						}`}
+					>
+						<img className="w-12 h-12 object-cover" alt="server" src={icon}></img>
+					</div>
 				</div>
 			</Link>
 		</div>
@@ -56,26 +64,43 @@ export default function SideBar({ openModal, isModalOpen }) {
 			className="relative top-0 left-0 h-screen w-[72px] flex flex-col
                   bg-white dark:bg-gray-900 shadow-lg"
 		>
-			<SideBarIcon
-				text="Direct messages"
-				icon={<FaFire size="28" />}
-				elementId="dm"
-				server={{ url: "/channels/@me", id: "dm" }}
-			/>
+			<div className="relative w-[72]">
+				<Link to="/channels/@me" onClick={() => handleElementClick("dm")}>
+					<div className="group">
+						<span className="sidebar-tooltip group-hover:scale-100">Direct Messages</span>
+						<div
+							className={`sidebar-icon hover:bg-sky-600  hover:text-white  ${
+								selected("dm") ? "active-no-img" : "rounded-3xl  text-sky-500 bg-gray-700"
+							} ${activeAnimation === "dm" ? "animate-drop" : ""}`}
+						>
+							<img className="w-12 h-12 object-cover" alt="server" src="/logo192.png"></img>
+						</div>
+					</div>
+				</Link>
+			</div>
 			<Divider />
-			{serverdata.map((server) => (
-				<SideBarIcon elementId={server.id} icon={<FaPoo size="20" />} text={server.id} server={server} />
+			{serverdata.map((server, index) => (
+				<SideBarIcon
+					elementId={server.server_id}
+					icon={server.img}
+					text={server.server_name}
+					key={index}
+					url={server.server_id}
+					id={server.server_id}
+				/>
 			))}
 			<Divider />
 			<div className="relative w-[72]">
-				<div
-					onClick={() => handleElementClick("addServer")}
-					className={`sidebar-icon group ${selected("addServer") ? "active" : "rounded-3xl"} ${
-						activeAnimation === "addServer" ? "animate-drop" : ""
-					}`}
-				>
-					<BsPlus size="28" />
+				<div className="group">
 					<span className="sidebar-tooltip group-hover:scale-100">Create a server</span>
+					<div
+						onClick={() => handleElementClick("addServer")}
+						className={`sidebar-icon hover:bg-sky-600 hover:text-white ${
+							selected("addServer") ? "active-no-img" : "rounded-3xl  text-sky-500 bg-gray-700"
+						} ${activeAnimation === "addServer" ? "animate-drop" : ""}`}
+					>
+						<BsPlus size="28" />
+					</div>
 				</div>
 			</div>
 		</div>

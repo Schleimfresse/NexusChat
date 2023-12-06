@@ -5,24 +5,23 @@ import { fileURLToPath } from "url";
 import * as dotenv from "dotenv";
 import { db } from "../config/db.js";
 dotenv.config();
+
 import { randomUUID } from "crypto";
-import UserAuth from "./UserAuth/index.mjs";
+//import UserAuth from "./UserAuth/index.mjs";
 const __dirname = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+global.__dirname = __dirname;
 const app = express();
 const port = process.env.PORT || 3300;
 import http from "http";
 const server = http.createServer(app);
+import serversApi from "./serversAPI/index.js";
 
-const corsOptions = {
-	origin: "http://localhost:3300",
-};
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use("/auth", UserAuth)
-app.get("/", (req, res) => {
-	res.send("Server running");
-});
+app.use("/public/", express.static(path.join(__dirname, "../public/")));
+app.use("/api/servers/", serversApi);
+//app.use("/auth", UserAuth);
 
 app.post("/receiveMessage", (req, res) => {
 	const { message, user, channel } = req.body;

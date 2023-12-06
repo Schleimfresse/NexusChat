@@ -18,9 +18,18 @@ module.exports = {
 					300: "#e3e5e8",
 					200: "#ebedef",
 					100: "#f2f3f5",
-					"secondary": "#969AA1",
-					"standard": "#313338",
-					"interactive": "#DADDE0"
+					secondary: "#969AA1",
+					standard: "#313338",
+					interactive: "#DADDE0",
+					"header-secondary": "#b4b9c0",
+					"header-primary": "#f3f4f6",
+					"input-placeholder": "#87898c",
+					"input-background": "#1d1e20",
+					"input-text": "#DBDEE1",
+					"button-secondary": "#4E5058",
+					"button-secondary-hover": "#6d6f78",
+					channel: "#80848e",
+					"channel-selected": "#3F4248"
 				},
 			},
 			keyframes: {
