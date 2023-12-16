@@ -38,7 +38,7 @@ router.post("/create", upload.single("img"), (req, res) => {
 	const general_channel_id = generateUniqueNumber();
 	const general_voice_id = generateUniqueNumber();
 	const img_path = path.join(global.__dirname, "../public/img/") + img_name;
-	const img_cdn_path = `http://localhost:3300/public/img/${img_name}`;
+	const img_cdn_path = `https://localhost:3300/public/img/${img_name}`;
 	fs.writeFileSync(img_path, img.buffer);
 
 	db.run(

@@ -18,7 +18,7 @@ export default function SideBar({ openModal, isModalOpen }) {
 
 	useEffect(() => {
 		axios
-			.get("http://localhost:3300/api/servers/list")
+			.get("https://localhost:3300/api/servers/list")
 			.then((res) => {
 				setServerdata(res.data);
 			})

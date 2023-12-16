@@ -10,164 +10,334 @@ import io from "socket.io-client";
 function App() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedServer, setSelectedServer] = useState(null);
-	const init = useRef(false);
+	const init = useRef(true);
 	const updateSelectedServer = (server) => {
 		setSelectedServer(server);
 	};
 
 	///////////////////////////////////////////////////////////
-	// Socket /////////////////////////////////////////////////
+	// Socket - start - ///////////////////////////////////////
 	///////////////////////////////////////////////////////////
 
-	const device = useRef(null);
-	const producer = useRef(null);
-	const Audio_element = document.getElementById("audio_element");
+	/*useEffect(() => {
+		if (!init.current) return;
+		init.current = false;
+		console.log(init.current);
+		const roomName = window.location.pathname.split("/")[2];
+		const socket = io("https://localhost:3300/mediasoup");
 
-	useEffect(() => {
-		if (init.current) return;
-		init.current = true;
-		document.title = "NexusChat";
+		let btn = document.getElementById("btn");
 
-		const socket = io("http://localhost:3300");
-
-		console.log("getRouterRtpCapabilities");
-		socket.emit("message", { type: "getRouterRtpCapabilities" });
-
-		socket.on("message", (msg) => {
-			switch (msg.type) {
-				case "routerCapabilities":
-					onRouterCapabilities(msg);
-					break;
-				case "producerTransportCreated":
-					onProducerTransportCreated(msg);
-					break;
-				default:
-					break;
-			}
+		socket.on("connection-success", ({ socketId }) => {
+			console.log(socketId);
+			getLocalStream();
 		});
 
-		document.getElementById("event_btn").addEventListener("click", () => {
-			socket.emit("message", {
-				type: "createProducerTransport",
-				forceTcp: false,
-				rtpCapabilities: device.current.rtpCapabilities,
+		let localVideo = document.getElementById("localVideo");
+		let videoContainer = document.getElementById("videoContainer");
+		let device;
+		let rtpCapabilities;
+		let producerTransport;
+		let consumerTransports = [];
+		let audioProducer;
+		let videoProducer;
+		//let consumer;
+		//let isProducer = false;
+
+		let params = {
+			track: null,
+			encodings: [
+				{
+					rid: "r0",
+					maxBitrate: 100000,
+					scalabilityMode: "S1T3",
+				},
+				{
+					rid: "r1",
+					maxBitrate: 300000,
+					scalabilityMode: "S1T3",
+				},
+				{
+					rid: "r2",
+					maxBitrate: 900000,
+					scalabilityMode: "S1T3",
+				},
+			],
+			codecOptions: {
+				videoGoogleStartBitrate: 1000,
+			},
+		};
+
+		let audioParams;
+		let videoParams = { params };
+		let consumingTransports = [];
+
+		const streamSuccess = (stream) => {
+			localVideo.srcObject = stream;
+
+			audioParams = { track: stream.getAudioTracks()[0], ...audioParams };
+			videoParams = { track: stream.getVideoTracks()[0], ...videoParams };
+
+			console.log(audioParams, videoParams);
+
+			joinRoom();
+		};
+
+		const joinRoom = () => {
+			socket.emit("joinRoom", { roomName }, (data) => {
+				console.log(`Router RTP Capabilities... ${data.rtpCapabilities}`);
+				// we assign to local variable and will be used when
+				// loading the client Device (see createDevice above)
+				rtpCapabilities = data.rtpCapabilities;
+
+				createDevice();
 			});
-		});
+		};
 
-		const onProducerTransportCreated = async (msg) => {
-			if (msg.error) {
-				console.error("producer transport create error", msg.error);
-				return;
+		const getLocalStream = () => {
+			navigator.mediaDevices
+				.getUserMedia({
+					audio: true,
+					video: {
+						width: {
+							min: 640,
+							max: 1920,
+						},
+						height: {
+							min: 400,
+							max: 1080,
+						},
+					},
+				})
+				.then(streamSuccess)
+				.catch((err) => console.log(err));
+		};
+
+		const createDevice = async () => {
+			try {
+				device = new Device();
+
+				await device.load({
+					routerRtpCapabilities: rtpCapabilities,
+				});
+
+				console.log("Device RTP Capabilities", device.rtpCapabilities);
+
+				createSendTransport();
+			} catch (error) {
+				console.log(error);
+				if (error.name === "UnsupportedError") console.warn("browser not supported");
 			}
+		};
 
-			console.log(device.current);
+		const createSendTransport = () => {
+			socket.emit("createWebRtcTransport", { consumer: false }, ({ params }) => {
+				if (params.error) {
+					console.log(params.error);
+					return;
+				}
 
-			const transport = device.current.createSendTransport(msg.data);
+				console.log(params);
 
-			transport.on("connect", async ({ dtlsParameters }, callback, errcallback) => {
-				const message = {
-					type: "connectProducerTransport",
-					dtlsParameters,
-				};
+				producerTransport = device.createSendTransport(params);
 
-				socket.emit("message", message);
-				socket.on("message", (msg) => {
-					if (msg.type === "producerConnected") {
-						console.log("producer Connected");
+				producerTransport.on("connect", async ({ dtlsParameters }, callback, errback) => {
+					try {
+						await socket.emit("transport-connect", {
+							dtlsParameters,
+						});
+
 						callback();
+					} catch (error) {
+						errback(error);
 					}
 				});
-			});
 
-			// begin transport on producer
-			transport.on("produce", async ({ kind, rtpParameters }, callback, errcallback) => {
-				const message = {
-					type: "produce",
-					transportId: transport.id,
-					kind,
-					rtpParameters,
-				};
-				socket.emit("message", message);
-				socket.on("published", (msg) => {
-					callback(msg.id);
+				producerTransport.on("produce", async (parameters, callback, errback) => {
+					console.log(parameters);
+
+					try {
+						await socket.emit(
+							"transport-produce",
+							{
+								kind: parameters.kind,
+								rtpParameters: parameters.rtpParameters,
+								appData: parameters.appData,
+							},
+							({ id, producersExist }) => {
+								callback({ id });
+
+								if (producersExist) getProducers();
+							}
+						);
+					} catch (error) {
+						errback(error);
+					}
 				});
+
+				connectSendTransport();
 			});
-			// end transport producer
+		};
 
-			// conneciton state change begin
-			transport.on("connectionStateChange", (state) => {
-				switch (state) {
-					case "connecting":
-						document.getElementById("textPublish").innerHTML = "publishing...";
-						break;
-					case "connected":
-						document.getElementById("textPublish").innerHTML = "published";
-						Audio_element.srcObject = stream;
-						break;
-					case "failed":
-						transport.close();
-						document.getElementById("textPublish").innerHTML = "failed";
-						break;
-					default:
-						break;
-				}
+		const connectSendTransport = async () => {
+			audioProducer = await producerTransport.produce(audioParams);
+			videoProducer = await producerTransport.produce(videoParams);
+
+			audioProducer.on("trackended", () => {
+				console.log("audio track ended");
+
+				// close audio track
 			});
-			// conneciton state change end
 
-			let stream;
-			try {
-				console.log("GET STREAM");
-				stream = await getUserMedia(transport);
-				console.log(stream);
-				const track = stream.getAudioTracks()[0];
-				const params = { track };
-				console.log(transport);
-				producer.current = await transport.produce(params);
-			} catch (err) {
-				console.error(err);
-				document.getElementById("textPublish").innerHTML = "failed";
-			}
+			audioProducer.on("transportclose", () => {
+				console.log("audio transport ended");
+
+				// close audio track
+			});
+
+			videoProducer.on("trackended", () => {
+				console.log("video track ended");
+
+				// close video track
+			});
+
+			videoProducer.on("transportclose", () => {
+				console.log("video transport ended");
+
+				// close video track
+			});
 		};
 
-		const onRouterCapabilities = async (msg) => {
-			await loadDevice(msg.data);
-		};
+		const signalNewConsumerTransport = async (remoteProducerId) => {
+			//check if we are already consuming the remoteProducerId
+			if (consumingTransports.includes(remoteProducerId)) return;
+			consumingTransports.push(remoteProducerId);
 
-		const loadDevice = async (routerRtpCapabilities) => {
-			try {
-				device.current = new Device();
-			} catch (err) {
-				if (err.name === "UnsupportedError") {
-					console.log("Browser not supported");
+			await socket.emit("createWebRtcTransport", { consumer: true }, ({ params }) => {
+				if (params.error) {
+					console.log(params.error);
+					return;
 				}
-			}
-			await device.current.load({ routerRtpCapabilities });
-			setIsDeviceLoaded(true);
+				console.log(`PARAMS... ${params}`);
+
+				let consumerTransport;
+				try {
+					consumerTransport = device.createRecvTransport(params);
+				} catch (error) {
+					console.log(error);
+					return;
+				}
+
+				consumerTransport.on("connect", async ({ dtlsParameters }, callback, errback) => {
+					try {
+						await socket.emit("transport-recv-connect", {
+							dtlsParameters,
+							serverConsumerTransportId: params.id,
+						});
+
+						callback();
+					} catch (error) {
+						errback(error);
+					}
+				});
+
+				connectRecvTransport(consumerTransport, remoteProducerId, params.id);
+			});
 		};
 
-		const getUserMedia = async (transport) => {
-			if (!device.current.canProduce("audio")) {
-				console.error("cannot produce audio");
-				return;
-			}
+		// server informs the client of a new producer just joined
+		socket.on("new-producer", ({ producerId }) => signalNewConsumerTransport(producerId));
 
-			let stream;
-			try {
-				stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-			} catch (err) {
-				console.error(err);
-				throw err;
-			}
-			return stream;
+		const getProducers = () => {
+			socket.emit("getProducers", (producerIds) => {
+				console.log(producerIds);
+				// for each of the producer create a consumer
+				// producerIds.forEach(id => signalNewConsumerTransport(id))
+				producerIds.forEach(signalNewConsumerTransport);
+			});
 		};
-	}, []);
-	const [isDeviceLoaded, setIsDeviceLoaded] = useState(false);
 
-	useEffect(() => {
-		if (device.current && isDeviceLoaded) {
-			console.log("Device is loaded and can be used now:", device.current);
-		}
-	}, [isDeviceLoaded]);
+		const connectRecvTransport = async (consumerTransport, remoteProducerId, serverConsumerTransportId) => {
+			await socket.emit(
+				"consume",
+				{
+					rtpCapabilities: device.rtpCapabilities,
+					remoteProducerId,
+					serverConsumerTransportId,
+				},
+				async ({ params }) => {
+					if (params.error) {
+						console.log("Cannot Consume");
+						return;
+					}
+
+					console.log(`Consumer Params`, params);
+					// then consume with the local consumer transport
+					// which creates a consumer
+					const consumer = await consumerTransport.consume({
+						id: params.id,
+						producerId: params.producerId,
+						kind: params.kind,
+						rtpParameters: params.rtpParameters,
+					});
+
+					consumerTransports = [
+						...consumerTransports,
+						{
+							consumerTransport,
+							serverConsumerTransportId: params.id,
+							producerId: remoteProducerId,
+							consumer,
+						},
+					];
+
+					const newElem = document.createElement("div");
+					newElem.setAttribute("id", `td-${remoteProducerId}`);
+
+					if (params.kind === "audio") {
+						newElem.innerHTML = '<audio id="' + remoteProducerId + '" autoPlay></audio>';
+					} else {
+						newElem.setAttribute("class", "remoteVideo h-40 w-60");
+						newElem.innerHTML = '<video id="' + remoteProducerId + '" autoPlay" ></video>';
+					}
+
+					videoContainer.appendChild(newElem);
+
+					const { track } = consumer;
+
+					console.log("REMOTE PRODUCER ID", document.getElementById(remoteProducerId));
+
+					document.getElementById(remoteProducerId).srcObject = new MediaStream([track]);
+
+					// the server consumer started with media paused
+					// so we need to inform the server to resume
+					socket.emit("consumer-resume", { serverConsumerId: params.serverConsumerId });
+				}
+			);
+		};
+
+		socket.on("producer-closed", ({ remoteProducerId }) => {
+			// server notification is received when a producer is closed
+			// we need to close the client-side consumer and associated transport
+			const producerToClose = consumerTransports.find(
+				(transportData) => transportData.producerId === remoteProducerId
+			);
+			producerToClose.consumerTransport.close();
+			producerToClose.consumer.close();
+
+			// remove the consumer transport from the list
+			consumerTransports = consumerTransports.filter(
+				(transportData) => transportData.producerId !== remoteProducerId
+			);
+
+			// remove the video div element
+			videoContainer.removeChild(document.getElementById(`td-${remoteProducerId}`));
+		});
+	}, []);*/
+
+	///////////////////////////////////////////////////////////
+	// Socket - end - /////////////////////////////////////////
+	///////////////////////////////////////////////////////////
 
 	return (
 		<ServerContext.Provider value={{ selectedServer, updateSelectedServer }}>
@@ -176,8 +346,8 @@ function App() {
 				<div className="relative flex-grow flex flex-col overflow-hidden ">
 					<div className="flex items-stretch justify-start min-w-0 min-h-0 flex-1">
 						<SecondSidebar></SecondSidebar>
-						<button id="event_btn">CLICK TO CREATE transport over mediasoup</button>
-						<audio id="audio_element" />
+						<video className="h-40 w-60" id="localVideo" muted autoPlay></video>
+						<div id="videoContainer"></div>
 						<div id="textPublish"></div>
 					</div>
 				</div>

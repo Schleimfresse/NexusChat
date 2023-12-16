@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { handleVoiceChannelConnection } from "../mediasoup.js";
 import { ServerContext } from "../ServerContext";
 import MicSVG from "../assets/mic.jsx";
 import MutedMicSVG from "../assets/muted-mic.jsx";
@@ -19,7 +20,7 @@ export default function SecondSidebar() {
 	useEffect(() => {
 		if (!fetchedServerData.includes(selectedServer)) {
 			axios
-				.get(`http://localhost:3300/api/servers/${selectedServer}/channels`)
+				.get(`https://localhost:3300/api/servers/${selectedServer}/channels`)
 				.then((res) => {
 					setChanneldata((alrFetchedChannelData) => [...alrFetchedChannelData, ...res.data]);
 				})
@@ -44,7 +45,11 @@ export default function SecondSidebar() {
 						className={`relative flex items-center justify-center p-2 pt-[7px] pb-[7px] hover:bg-gray-500-background-modifier-hover rounded ${
 							activeChannel === id && type === 1 ? "bg-gray-channel-selected" : ""
 						}`}
-						onClick={type === 1 && (() => handleChannelClick(id))}
+						onClick={
+							(type === 1 && (() => handleChannelClick(id))) ||
+							(type === 2 && (() => handleVoiceChannelConnection(id)))
+						}
+						data-channel-id={id}
 					>
 						<div className="relative flex items-center justify-center grow">
 							<div className="mr-2">
