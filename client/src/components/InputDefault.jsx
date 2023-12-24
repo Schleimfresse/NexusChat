@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function InputDefault({ initial_value, placeholder, id }) {
+export default function InputDefault({ initial_value, placeholder, id, type }) {
 	const [value, setValue] = useState(initial_value);
 
 	const handleChange = (event) => {
@@ -15,6 +15,7 @@ export default function InputDefault({ initial_value, placeholder, id }) {
 			onChange={handleChange}
 			placeholder={placeholder}
 			id={id}
+			type={type}
 		></input>
 	);
 }

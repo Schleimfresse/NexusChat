@@ -39,7 +39,10 @@ router.post("/create", upload.single("img"), (req, res) => {
 	const general_voice_id = generateUniqueNumber();
 	const img_path = path.join(global.__dirname, "../public/img/") + img_name;
 	const img_cdn_path = `https://localhost:3300/public/img/${img_name}`;
-	fs.writeFileSync(img_path, img.buffer);
+
+	if (JSON.parse(req.body.isimageAppended)) {
+		fs.writeFileSync(img_path, img.buffer);
+	}
 
 	db.run(
 		`INSERT INTO servers (server_name, server_id, img) VALUES (?, ?, ?)`,
@@ -50,7 +53,7 @@ router.post("/create", upload.single("img"), (req, res) => {
 			}
 
 			db.run(
-				`INSERT INTO channels (server_id, channel_name, type, channel_id) VALUES (?, 'General 3444', 1, ?), (?, 'General 535', 2, ?)`,
+				`INSERT INTO channels (server_id, channel_name, type, channel_id) VALUES (?, 'General', 1, ?), (?, 'General', 2, ?)`,
 				[serverId, general_channel_id, serverId, general_voice_id],
 				function (err) {
 					if (err) {

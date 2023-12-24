@@ -1,36 +1,35 @@
-import lib from "../Lib/lib.mjs"
+import { db } from "../../../config/db.js";
 const checkDuplicateUsernameOrEmail = (req, res, next) => {
-    // Username
-    lib.database.findOne({
-        username: req.body.username
-    }).exec((err, user) => {
-        if (err) {
-            res.status(500).send({ message: err });
-            return;
-        }
+	const getQuery = "SELECT COUNT(*) AS count FROM users WHERE username = ?";
+	db.get(getQuery, [req.username], (err, row) => {
+		if (err) {
+			res.status(500).send({ message: err });
+			return;
+		}
 
-        if (user) {
-            res.status(400).send({ message: "Failed! Username is already in use!" });
-            return;
-        }
+		const count = row.count;
 
-        // Email
-        lib.database.findOne({
-            email: req.body.email
-        }).exec((err, user) => {
-            if (err) {
-                res.status(500).send({ message: err });
-                return;
-            }
+		if (count > 0) {
+			res.status(400).send({ message: "Failed! Username is already in use!" });
+		}
 
-            if (user) {
-                res.status(400).send({ message: "Failed! Email is already in use!" });
-                return;
-            }
+		// Email
+		const getQuery = "SELECT COUNT(*) AS count FROM users WHERE email = ?";
+		db.get(getQuery, [req.email], (err, row) => {
+			if (err) {
+				res.status(500).send({ message: err });
+				return;
+			}
 
-            next();
-        });
-    });
+			const count = row.count;
+
+			if (count < 0) {
+				res.status(400).send({ message: "Failed! Username is already in use!" });
+			}
+
+			next();
+		});
+	});
 };
 
-export {checkDuplicateUsernameOrEmail};
+export { checkDuplicateUsernameOrEmail };

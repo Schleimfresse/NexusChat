@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import * as path from "path";
-import serversApi from "./serversAPI/index.js";
+import serversApi from "./api/index.js";
 import { fileURLToPath } from "url";
 import * as dotenv from "dotenv";
 import { db } from "../config/db.js";
@@ -9,11 +9,10 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 import { Server } from "socket.io";
 import https from "https";
-import { config } from "../config/config.js";
 import mediasoup from "mediasoup";
 import { createWebRtcTransport } from "./mediasoup/createWebRtcTransport.js";
 dotenv.config();
-//import UserAuth from "./UserAuth/index.mjs";
+import UserAuth from "./UserAuth/index.mjs";
 const __dirname = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 global.__dirname = __dirname;
 const app = express();
@@ -28,6 +27,7 @@ const io = new Server(server, {
 		origin: "http://localhost:3000",
 	},
 });
+
 ///////////////////////////////////////////////////////////
 // Middleware /////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/public/", express.static(path.join(__dirname, "../public/")));
 app.use("/api/servers/", serversApi);
-//app.use("/auth", UserAuth);
+app.use("/auth", UserAuth);
 
 ///////////////////////////////////////////////////////////
 // Routes /////////////////////////////////////////////////
@@ -78,11 +78,11 @@ app.get("/getMessage", (req, res) => {});
 const connections = io.of("/mediasoup");
 
 let worker;
-let rooms = {}; // { roomName1: { Router, rooms: [ sicketId1, ... ] }, ...}
-let peers = {}; // { socketId1: { roomName1, socket, transports = [id1, id2,] }, producers = [id1, id2,] }, consumers = [id1, id2,], peerDetails }, ...}
-let transports = []; // [ { socketId1, roomName1, transport, consumer }, ... ]
-let producers = []; // [ { socketId1, roomName1, producer, }, ... ]
-let consumers = []; // [ { socketId1, roomName1, consumer, }, ... ]
+let rooms = {};
+let peers = {}; 
+let transports = [];
+let producers = [];
+let consumers = [];
 
 const createWorker = async () => {
 	worker = await mediasoup.createWorker({
@@ -100,13 +100,8 @@ const createWorker = async () => {
 	return worker;
 };
 
-// We create a Worker as soon as our application starts
 worker = createWorker();
 
-// This is an Array of RtpCapabilities
-// https://mediasoup.org/documentation/v3/mediasoup/rtp-parameters-and-capabilities/#RtpCodecCapability
-// list of media codecs supported by mediasoup ...
-// https://github.com/versatica/mediasoup/blob/v3/src/supportedRtpCapabilities.ts
 const mediaCodecs = [
 	{
 		kind: "audio",
@@ -152,7 +147,6 @@ connections.on("connection", async (socket) => {
 			const { roomName } = peers[socket.id];
 			delete peers[socket.id];
 
-			// remove socket from room
 			rooms[roomName] = {
 				router: rooms[roomName].router,
 				peers: rooms[roomName].peers.filter((socketId) => socketId !== socket.id),

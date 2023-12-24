@@ -38,8 +38,9 @@ export default function AddServer({ closeModal }) {
 			const data = new FormData();
 			data.append("name", serverName);
 			data.append("img", selectedFile);
+			data.append("isimageAppended", !selectedFile ? false : true);
 			console.log(data);
-			const response = await axios.post("http://localhost:3300/api/servers/create", data, {
+			const response = await axios.post("https://localhost:3300/api/servers/create", data, {
 				headers: {
 					"Content-Type": "multipart/form-data",
 				},

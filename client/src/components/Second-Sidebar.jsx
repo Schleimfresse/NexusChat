@@ -10,6 +10,7 @@ import DeafenSVG from "../assets/deafen.jsx";
 import Settings from "../assets/settings.jsx";
 import Speaker from "../assets/speaker";
 import Hashtag from "../assets/hashtag";
+import { useAuthUser } from "react-auth-kit";
 
 export default function SecondSidebar() {
 	const [channeldata, setChanneldata] = useState([]);
@@ -64,6 +65,29 @@ export default function SecondSidebar() {
 				</div>
 			</li>
 		);
+	}
+
+	const VoiceChannelUserBox = (avatar, name) => {
+		return (
+			<div>
+				<div className="mt-[1px] mb-[1px] flex items-center justify-start rounded-md">
+					<div
+						className={`w-6 h-6 flex-shrink-0 mx-8 border rounded-full bg-cover bg-no-repeat bg-center mt-[3px] mb-[3px] bg-[url(${avatar})]`}
+					></div>
+					<div className="text-base leading-5 font-medium flex-1 whitespace-nowrap overflow-hidden overflow-ellipsis">
+						{name}
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const VoiceChannelMemberWrapper = () => {
+		return (
+			<div className="pl-9 pb-2 flex flex-col flex-nowrap items-stretch justify-start">
+				
+			</div>
+		)
 	}
 
 	return (
@@ -130,6 +154,7 @@ const UserPanelButton = ({ svgIcon, clickfunc }) => {
 };
 
 const UserAvatarWrapper = () => {
+	const auth_user = useAuthUser();
 	const [isHovered, setIsHovered] = useState(false);
 
 	const handleHover = () => {
@@ -149,7 +174,7 @@ const UserAvatarWrapper = () => {
 			<div className="w-8 h-8 flex-shrink-0 cursor-pointer relative rounded-full bg-slate-600"></div>
 			<div className="pb-1 pl-2 pt-1 cursor-pointer select-text flex-grow-1 mr-1 min-w-0">
 				<div className="text-sm font-ggNormal leading-[18px] font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-white">
-					𝕾𝖈𝖍𝖑𝖊𝖎𝖒𝖋𝖗𝖊𝖘𝖘𝖊
+					{auth_user().alias}
 				</div>
 				<div className="text-xs font-ggNormal leading-4 font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-gray-header-secondary">
 					<div className="inline-block align-top cursor-default text-left box-border relative w-full contain-paint select-none">
@@ -168,7 +193,7 @@ const UserAvatarWrapper = () => {
 								isHovered ? "translate-z-0 opacity-100" : ""
 							}`}
 						>
-							schleimfresse
+							{auth_user().username}
 						</div>
 					</div>
 				</div>
