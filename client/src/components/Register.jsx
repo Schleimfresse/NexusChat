@@ -15,24 +15,25 @@ export default function Register() {
 		try {
 			const body = {
 				username: document.getElementById("username").value,
-				alias: document.getElementById("alias").value,
+				display_name: document.getElementById("alias").value,
 				email: document.getElementById("email").value,
 				password: document.getElementById("password").value,
 			};
 
-			const response = await axios.post("https://localhost:3300/auth/signup", body);
-
-			signIn({
-				token: response.data.message.token,
-				expiresIn: 3600,
-				tokenType: "Bearer",
-				authState: {
-					username: response.data.message.username,
-					alias: response.data.message.alias,
-					status: "",
-				},
+			axios.post("https://localhost:3300/api/auth/register", body).then((res) => {
+				const data = res.data;
+				signIn({
+					token: data.token,
+					expiresIn: 3600,
+					tokenType: "Bearer",
+					authState: {
+						username: data.username,
+						display_name: data.display_name,
+						status: "",
+					},
+				});
+				navigation("/channels/@me");
 			});
-			navigation("/channels/@me");
 
 		} catch (err) {
 			console.log(err.message, err.name, err);

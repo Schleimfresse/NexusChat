@@ -18,7 +18,7 @@ export default function SideBar({ openModal, isModalOpen }) {
 
 	useEffect(() => {
 		axios
-			.get("https://localhost:3300/api/servers/list")
+			.get("https://localhost:3300/api/list")
 			.then((res) => {
 				setServerdata(res.data);
 			})
@@ -79,14 +79,14 @@ export default function SideBar({ openModal, isModalOpen }) {
 				</Link>
 			</div>
 			<Divider />
-			{serverdata.map((server, index) => (
+			{serverdata != null && serverdata.map((server, index) => (
 				<SideBarIcon
-					elementId={server.server_id}
+					elementId={server.id}
 					icon={server.img}
-					text={server.server_name}
+					text={server.name}
 					key={index}
-					url={server.server_id}
-					id={server.server_id}
+					url={server.id}
+					id={server.id}
 				/>
 			))}
 			<Divider />

@@ -14,15 +14,16 @@ export default function Login() {
 				password: document.getElementById("password").value,
 			};
 
-			const response = await axios.post("https://localhost:3300/auth/signin", body);
-
-			signIn({
-				token: response.data.message.token,
-				expiresIn: 3600,
-				tokenType: "Bearer",
-				authState: { username: response.data.message.username, alias: response.data.message.alias },
+			axios.post("https://localhost:3300/api/auth/login", JSON.stringify(body)).then((res) => {
+				const data = res.data;
+				signIn({
+					token: data.token,
+					expiresIn: 3600,
+					tokenType: "Bearer",
+					authState: { username: data.username, display_name: data.display_name },
+				});
+				navigation("/channels/@me");
 			});
-			navigation("/channels/@me");
 		} catch (err) {
 			console.log(err.message, err.name, err);
 		}

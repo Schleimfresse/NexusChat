@@ -40,7 +40,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/public/", express.static(path.join(__dirname, "../public/")));
-app.use("/api/servers/", serversApi);
+app.use("/api/", serversApi);
 app.use("/auth", UserAuth);
 
 ///////////////////////////////////////////////////////////

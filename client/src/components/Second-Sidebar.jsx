@@ -1,7 +1,7 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext} from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { handleVoiceChannelConnection } from "../mediasoup.js";
+import { VoiceChannelConnection } from "../VoiceChannelConnection.js";
 import { ServerContext } from "../ServerContext";
 import MicSVG from "../assets/mic.jsx";
 import MutedMicSVG from "../assets/muted-mic.jsx";
@@ -10,20 +10,24 @@ import DeafenSVG from "../assets/deafen.jsx";
 import Settings from "../assets/settings.jsx";
 import Speaker from "../assets/speaker";
 import Hashtag from "../assets/hashtag";
+import Handset from "../assets/handset.jsx";
 import { useAuthUser } from "react-auth-kit";
 
 export default function SecondSidebar() {
+	const voiceChannelInstance = new VoiceChannelConnection();
 	const [channeldata, setChanneldata] = useState([]);
 	const [fetchedServerData, setFetchedServerdata] = useState([]);
 	const [activeChannel, setActiveChannel] = useState(null);
-	const { selectedServer, updateSelectedServer } = useContext(ServerContext);
+	const { selectedServer } = useContext(ServerContext);
 
 	useEffect(() => {
-		if (!fetchedServerData.includes(selectedServer)) {
+		if (selectedServer && !fetchedServerData.includes(selectedServer)) {
+			console.log(selectedServer);
 			axios
-				.get(`https://localhost:3300/api/servers/${selectedServer}/channels`)
+				.get(`https://localhost:3300/api/${selectedServer}/channels`)
 				.then((res) => {
 					setChanneldata((alrFetchedChannelData) => [...alrFetchedChannelData, ...res.data]);
+					console.log(channeldata);
 				})
 				.catch((err) => {
 					console.error("Error fetching channel");
@@ -32,9 +36,13 @@ export default function SecondSidebar() {
 		}
 	}, [selectedServer]);
 
-	const handleChannelClick = (id) => {
+	const handleTextChannelClick = (id) => {
 		console.log(activeChannel);
 		setActiveChannel(id);
+	};
+
+	const handleVoiceChannelClick = (id) => {
+		voiceChannelInstance.connect(id);
 	};
 
 	function Channel({ name, type, url, id, channel_server_id }) {
@@ -47,8 +55,8 @@ export default function SecondSidebar() {
 							activeChannel === id && type === 1 ? "bg-gray-channel-selected" : ""
 						}`}
 						onClick={
-							(type === 1 && (() => handleChannelClick(id))) ||
-							(type === 2 && (() => handleVoiceChannelConnection(id)))
+							(type === 1 && (() => handleTextChannelClick(id))) ||
+							(type === 2 && (() => handleVoiceChannelClick(id)))
 						}
 						data-channel-id={id}
 					>
@@ -72,7 +80,8 @@ export default function SecondSidebar() {
 			<div>
 				<div className="mt-[1px] mb-[1px] flex items-center justify-start rounded-md">
 					<div
-						className={`w-6 h-6 flex-shrink-0 mx-8 border rounded-full bg-cover bg-no-repeat bg-center mt-[3px] mb-[3px] bg-[url(${avatar})]`}
+						style={{ "--image-url": `url(${avatar})` }}
+						className={`w-6 h-6 flex-shrink-0 mx-8 border rounded-full bg-cover bg-no-repeat bg-center mt-[3px] mb-[3px] bg-[image:var(--image-url)]`}
 					></div>
 					<div className="text-base leading-5 font-medium flex-1 whitespace-nowrap overflow-hidden overflow-ellipsis">
 						{name}
@@ -83,12 +92,58 @@ export default function SecondSidebar() {
 	};
 
 	const VoiceChannelMemberWrapper = () => {
+		return <div className="pl-9 pb-2 flex flex-col flex-nowrap items-stretch justify-start"></div>;
+	};
+
+	const VoiceChannelConnectedPanel = () => {
 		return (
-			<div className="pl-9 pb-2 flex flex-col flex-nowrap items-stretch justify-start">
-				
+			voiceChannelInstance.connected && (
+				<div className="w-full h-10">
+					<UserPanelButton
+						clickfunc={voiceChannelInstance.disconnectFromVoiceChannel()}
+						svgIcon={<Handset></Handset>}
+					></UserPanelButton>
+				</div>
+			)
+		);
+	};
+
+	const UserPanel = () => {
+		const [muted, setMuted] = useState(false);
+		const [deafen, setDeafen] = useState(false);
+
+		const handleToggleMute = () => {
+			setMuted((prevMuted) => !prevMuted);
+			voiceChannelInstance.muteSender(muted);
+			if (deafen) {
+				setDeafen((prevDeafen) => !prevDeafen);
+				voiceChannelInstance.muteReceivers(deafen);
+			}
+		};
+
+		const handleToggleDeaf = () => {
+			const newState = !deafen;
+			setDeafen((prevDeafen) => !prevDeafen);
+			setMuted(newState);
+
+			voiceChannelInstance.muteSender(muted);
+			voiceChannelInstance.muteReceivers(deafen);
+		};
+
+		const MicIcon = muted ? <MutedMicSVG></MutedMicSVG> : <MicSVG></MicSVG>;
+		const DeafIcon = deafen ? <DeafenSVG></DeafenSVG> : <HeadsetSVG></HeadsetSVG>;
+
+		return (
+			<div className="bg-gray-800 h-14 text-base font-medium flex items-center px-2 flex-shrink-0 flex-grow-0">
+				<UserAvatarWrapper></UserAvatarWrapper>
+				<div className="flex-shrink-0 flex-grow-1 flex flex-nowrap items-stretch justify-start">
+					<UserPanelButton svgIcon={MicIcon} clickfunc={handleToggleMute}></UserPanelButton>
+					<UserPanelButton svgIcon={DeafIcon} clickfunc={handleToggleDeaf}></UserPanelButton>
+					<UserPanelButton svgIcon={<Settings></Settings>}></UserPanelButton>
+				</div>
 			</div>
-		)
-	}
+		);
+	};
 
 	return (
 		<div className="flex w-60 bg-gray-700 overflow-hidden flex-col min-h-0">
@@ -98,49 +153,21 @@ export default function SecondSidebar() {
 						(channel, index) =>
 							selectedServer === channel.server_id && (
 								<Channel
-									url={`/channels/${channel.server_id}/${channel.channel_id}/`}
-									name={channel.channel_name}
+									url={`/channels/${channel.server_id}/${channel.id}/`}
+									name={channel.name}
 									type={channel.type}
-									id={channel.channel_id}
+									id={channel.id}
 									channel_server_id={channel.server_id}
 								></Channel>
 							)
 					)}
 				</ul>
 			</nav>
+			<VoiceChannelConnectedPanel></VoiceChannelConnectedPanel>
 			<UserPanel></UserPanel>
 		</div>
 	);
 }
-
-const UserPanel = () => {
-	const [muted, setMuted] = useState(false);
-	const [deafen, setDeafen] = useState(false);
-
-	const handleToggleMute = () => {
-		setMuted((prevMuted) => !prevMuted);
-	};
-
-	const handleToggleDeaf = () => {
-		const newState = !deafen;
-		setDeafen(newState);
-		setMuted(newState);
-	};
-
-	const MicIcon = muted ? <MutedMicSVG></MutedMicSVG> : <MicSVG></MicSVG>;
-	const DeafIcon = deafen ? <DeafenSVG></DeafenSVG> : <HeadsetSVG></HeadsetSVG>;
-
-	return (
-		<div className="bg-gray-800 h-14 text-base font-medium flex items-center px-2 flex-shrink-0 flex-grow-0">
-			<UserAvatarWrapper></UserAvatarWrapper>
-			<div className="flex-shrink-0 flex-grow-1 flex flex-nowrap items-stretch justify-start">
-				<UserPanelButton svgIcon={MicIcon} clickfunc={handleToggleMute}></UserPanelButton>
-				<UserPanelButton svgIcon={DeafIcon} clickfunc={handleToggleDeaf}></UserPanelButton>
-				<UserPanelButton svgIcon={<Settings></Settings>}></UserPanelButton>
-			</div>
-		</div>
-	);
-};
 
 const UserPanelButton = ({ svgIcon, clickfunc }) => {
 	return (
@@ -174,7 +201,7 @@ const UserAvatarWrapper = () => {
 			<div className="w-8 h-8 flex-shrink-0 cursor-pointer relative rounded-full bg-slate-600"></div>
 			<div className="pb-1 pl-2 pt-1 cursor-pointer select-text flex-grow-1 mr-1 min-w-0">
 				<div className="text-sm font-ggNormal leading-[18px] font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-white">
-					{auth_user().alias}
+					{auth_user().display_name}
 				</div>
 				<div className="text-xs font-ggNormal leading-4 font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-gray-header-secondary">
 					<div className="inline-block align-top cursor-default text-left box-border relative w-full contain-paint select-none">

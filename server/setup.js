@@ -13,12 +13,18 @@ db.run(`
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY,
         username TEXT NOT NULL,
-        alias TEXT
+        display_name TEXT
         password TEXT,
         email TEXT,
-        img TEXT,
-        password TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        language TEXT,
+        status INTEGER,
+        bio TEXT,
+        custom_status TEXT,
+        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        pronouns TEXT,
+        img_url TEXT,
+        password TEXT
     )
 `);
 
