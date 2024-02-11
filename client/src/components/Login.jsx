@@ -20,7 +20,7 @@ export default function Login() {
 					token: data.token,
 					expiresIn: 3600,
 					tokenType: "Bearer",
-					authState: { username: data.username, display_name: data.display_name },
+					authState: { username: data.username, displayName: data.displayName, userId: data.userId, img: data.img },
 				});
 				navigation("/channels/@me");
 			});

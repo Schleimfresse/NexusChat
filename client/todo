@@ -1,0 +1,35 @@
+## Client
+
+-> Color Schema für aktionen. -> hover etc
+
+## Server
+
+-> DB infrastruktur
+
+verschiedene Channel anzeigen wenn server selected
+
+
+https://gist.github.com/parmentf/035de27d6ed1dce0b36a ⚡
+
+
+// Codecs für verschiedene Fälle berücksichtigen
+// Daten von Producern an alle im raum consumen lassen -> gibt es schon ein Raum wie simuliere in ein Raum [+]
+
+auth.controller / auth.routes multer und router scope
+
+- VerifySignUp zu SQLite converten
+
+wenn connected und reconnect ws issue wegen double conn
+
+- tendenziel connection status in class moven
+
+-> remoteDesc can nicht in stable gesetet werden
+
+--> class versucht zweimal zu connecten [+]
+
+- wenn keine Class VoiceChannelConnection, mute deaf -> err
+
+LANGFRISTIG:
+-> Gruppen anlegbar machen welche custom erstellt sind bei channels
+
+-> role updating authentication (nutzer ohne rechte darf keine Rechte vergeben)

@@ -1,8 +1,8 @@
-import { useState, useEffect, useContext} from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { VoiceChannelConnection } from "../VoiceChannelConnection.js";
-import { ServerContext } from "../ServerContext";
+import { serverContext } from "../Contexts.js";
 import MicSVG from "../assets/mic.jsx";
 import MutedMicSVG from "../assets/muted-mic.jsx";
 import HeadsetSVG from "../assets/headset.jsx";
@@ -12,29 +12,47 @@ import Speaker from "../assets/speaker";
 import Hashtag from "../assets/hashtag";
 import Handset from "../assets/handset.jsx";
 import { useAuthUser } from "react-auth-kit";
+import { WebsocketService } from "../websocketUtils.js";
+import { SlArrowDown } from "react-icons/sl";
+import { BsPlus } from "react-icons/bs";
 
 export default function SecondSidebar() {
-	const voiceChannelInstance = new VoiceChannelConnection();
 	const [channeldata, setChanneldata] = useState([]);
-	const [fetchedServerData, setFetchedServerdata] = useState([]);
+	const [fetchedChannelData, setFetchedChanneldata] = useState([]);
 	const [activeChannel, setActiveChannel] = useState(null);
-	const { selectedServer } = useContext(ServerContext);
+	const { selectedServer } = useContext(serverContext);
+	const [isConnected, setConnected] = useState(false);
+	const [channelId, setChannelId] = useState(null);
+	const [voiceChannelInstance, setVoiceChannelInstance] = useState(undefined);
 
 	useEffect(() => {
-		if (selectedServer && !fetchedServerData.includes(selectedServer)) {
+		if (selectedServer && !fetchedChannelData.includes(selectedServer)) {
 			console.log(selectedServer);
+
 			axios
 				.get(`https://localhost:3300/api/${selectedServer}/channels`)
 				.then((res) => {
+					console.log(res);
 					setChanneldata((alrFetchedChannelData) => [...alrFetchedChannelData, ...res.data]);
 					console.log(channeldata);
 				})
 				.catch((err) => {
 					console.error("Error fetching channel");
 				});
-			setFetchedServerdata((prevServerId) => [...prevServerId, selectedServer]);
+			setFetchedChanneldata((prevServerId) => [...prevServerId, selectedServer]);
 		}
-	}, [selectedServer]);
+	}, [selectedServer, channeldata, fetchedChannelData]); // may remove channeldata and fetchedServerData
+
+	useEffect(() => {
+		if (channelId !== null) {
+			setVoiceChannelInstance((prevInstance) => {
+				const newInstance = new VoiceChannelConnection();
+				newInstance.connect(channelId);
+				console.log("connecting");
+				return newInstance;
+			});
+		}
+	}, [channelId]);
 
 	const handleTextChannelClick = (id) => {
 		console.log(activeChannel);
@@ -42,17 +60,20 @@ export default function SecondSidebar() {
 	};
 
 	const handleVoiceChannelClick = (id) => {
-		voiceChannelInstance.connect(id);
+		setConnected(() => {
+			setChannelId(id);
+			return true;
+		});
 	};
 
-	function Channel({ name, type, url, id, channel_server_id }) {
+	function Channel({ name, type, url, id }) {
 		return (
 			<li>
 				<div className="ml-2 pt-[1px] pb-[1px]">
 					<Link
 						to={type === 1 && url}
-						className={`relative flex items-center justify-center p-2 pt-[7px] pb-[7px] hover:bg-gray-500-background-modifier-hover rounded ${
-							activeChannel === id && type === 1 ? "bg-gray-channel-selected" : ""
+						className={`relative flex items-center justify-center p-2 pt-[6px] pb-[6px] hover:bg-gray-500-background-modifier-hover text-gray-channel rounded ${
+							activeChannel === id && type === 1 ? "bg-gray-channel-selected text-white" : ""
 						}`}
 						onClick={
 							(type === 1 && (() => handleTextChannelClick(id))) ||
@@ -65,7 +86,7 @@ export default function SecondSidebar() {
 								{type === 2 && <Speaker color="text-gray-channel"></Speaker>}
 								{type === 1 && <Hashtag color="text-gray-channel"></Hashtag>}
 							</div>
-							<div className="overflow-hidden whitespace-nowrap overflow-ellipsis text-base leading-5 font-medium flex-1 font-ggMedium text-gray-channel flex basis-auto grow shrink">
+							<div className="overflow-hidden whitespace-nowrap overflow-ellipsis text-base leading-5 font-medium flex-1 font-ggMedium flex basis-auto grow shrink">
 								{name}
 							</div>
 						</div>
@@ -97,14 +118,17 @@ export default function SecondSidebar() {
 
 	const VoiceChannelConnectedPanel = () => {
 		return (
-			voiceChannelInstance.connected && (
-				<div className="w-full h-10">
-					<UserPanelButton
-						clickfunc={voiceChannelInstance.disconnectFromVoiceChannel()}
-						svgIcon={<Handset></Handset>}
-					></UserPanelButton>
-				</div>
-			)
+			<div className="w-full h-10">
+				<UserPanelButton
+					clickfunc={() => {
+						setConnected(false);
+						setChannelId(null);
+						voiceChannelInstance.disconnectFromVoiceChannel();
+						setVoiceChannelInstance(null);
+					}}
+					svgIcon={<Handset></Handset>}
+				></UserPanelButton>
+			</div>
 		);
 	};
 
@@ -119,6 +143,8 @@ export default function SecondSidebar() {
 				setDeafen((prevDeafen) => !prevDeafen);
 				voiceChannelInstance.muteReceivers(deafen);
 			}
+
+			//VoiceChannelConnection.applyPendingMutedState();
 		};
 
 		const handleToggleDeaf = () => {
@@ -149,21 +175,44 @@ export default function SecondSidebar() {
 		<div className="flex w-60 bg-gray-700 overflow-hidden flex-col min-h-0">
 			<nav className="relative overflow-hidden select-none flex flex-col shrink grow basis-0">
 				<ul className="overflow-x-hidden overflow-y-scroll transparent-scrollbar">
-					{channeldata.map(
-						(channel, index) =>
-							selectedServer === channel.server_id && (
-								<Channel
-									url={`/channels/${channel.server_id}/${channel.id}/`}
-									name={channel.name}
-									type={channel.type}
-									id={channel.id}
-									channel_server_id={channel.server_id}
-								></Channel>
+					{fetchedChannelData.map((serverId) => {
+						const serverChannels = channeldata.filter((channel) => channel.serverId === serverId);
+						const voiceChannelsArray = serverChannels.filter((channel) => channel.type === 2);
+						const textChannelsArray = serverChannels.filter((channel) => channel.type === 1);
+
+						return (
+							selectedServer === serverId && (
+								<React.Fragment key={serverId}>
+								<ChannelGroup title={"voice channels"}></ChannelGroup>
+									{voiceChannelsArray.map((channel, index) => (
+										<Channel
+											url={`/channels/${channel.serverId}/${channel.id}/`}
+											name={channel.name}
+											type={channel.type}
+											id={channel.id}
+											key={index}
+											channel_server_id={channel.serverId}
+										></Channel>
+									))}
+
+									<ChannelGroup title={"text channels"}></ChannelGroup>
+									{textChannelsArray.map((channel, index) => (
+										<Channel
+											url={`/channels/${channel.serverId}/${channel.id}/`}
+											name={channel.name}
+											type={channel.type}
+											id={channel.id}
+											key={index}
+											channel_server_id={channel.serverId}
+										></Channel>
+									))}
+								</React.Fragment>
 							)
-					)}
+						);
+					})}
 				</ul>
 			</nav>
-			<VoiceChannelConnectedPanel></VoiceChannelConnectedPanel>
+			{isConnected && voiceChannelInstance && <VoiceChannelConnectedPanel></VoiceChannelConnectedPanel>}
 			<UserPanel></UserPanel>
 		</div>
 	);
@@ -201,7 +250,7 @@ const UserAvatarWrapper = () => {
 			<div className="w-8 h-8 flex-shrink-0 cursor-pointer relative rounded-full bg-slate-600"></div>
 			<div className="pb-1 pl-2 pt-1 cursor-pointer select-text flex-grow-1 mr-1 min-w-0">
 				<div className="text-sm font-ggNormal leading-[18px] font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-white">
-					{auth_user().display_name}
+					{auth_user().displayName}
 				</div>
 				<div className="text-xs font-ggNormal leading-4 font-normal whitespace-nowrap overflow-hidden overflow-ellipsis text-gray-header-secondary">
 					<div className="inline-block align-top cursor-default text-left box-border relative w-full contain-paint select-none">
@@ -226,5 +275,26 @@ const UserAvatarWrapper = () => {
 				</div>
 			</div>
 		</div>
+	);
+};
+
+const ChannelGroup = ({title}) => {
+	return (
+		<li draggable className="relative pt-4">
+			<div className="cursor-pointer relative box-border h-6 pl-5 pr-2 flex items-center justify-between text-gray-channel hover:text-white">
+				<div className="flex-1 overflow-hidden block">
+					<h3 className="box-border text-ellipsis whitespace-nowrap overflow-hidden uppercase text-xs leading-4 tracking-[0.04em] font-ggSemibold font-semibold">
+						<div className="">{title}</div>
+					</h3>
+					<SlArrowDown height={12} width={12} className="absolute left-[2px] top-[6px] w-3 h-3 overflow-hidden" />
+				</div>
+				<div className="flex items-center justify-center flex-shrink-0">
+					<button className="p-0 px-2 border-dotted border-transparent w-[18px] h-[18px]"></button>
+					<div>
+						<BsPlus height={24} width={24}></BsPlus>
+					</div>
+				</div>
+			</div>
+		</li>
 	);
 };

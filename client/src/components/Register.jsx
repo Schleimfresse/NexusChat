@@ -15,26 +15,28 @@ export default function Register() {
 		try {
 			const body = {
 				username: document.getElementById("username").value,
-				display_name: document.getElementById("alias").value,
+				displayName: document.getElementById("alias").value,
 				email: document.getElementById("email").value,
 				password: document.getElementById("password").value,
 			};
 
 			axios.post("https://localhost:3300/api/auth/register", body).then((res) => {
 				const data = res.data;
+				console.log(data);
 				signIn({
 					token: data.token,
 					expiresIn: 3600,
 					tokenType: "Bearer",
 					authState: {
 						username: data.username,
-						display_name: data.display_name,
+						displayName: data.displayName,
 						status: "",
+						userId: data.userId,
+						img: data.img
 					},
 				});
 				navigation("/channels/@me");
 			});
-
 		} catch (err) {
 			console.log(err.message, err.name, err);
 		}

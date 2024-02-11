@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import SmallHeading from "./SmallHeading";
 import InputDefault from "./InputDefault";
 import Upload from "../assets/upload";
 import { useNavigate } from "react-router-dom";
 import DefaultButton from "./DefaultButton";
 import axios from "axios";
+import { useAuthUser } from "react-auth-kit";
+import { serverDataContext } from "../Contexts";
 
 export default function AddServer({ closeModal }) {
+	const authUser = useAuthUser();
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedFile, setSelectedFile] = useState(false);
+	const { serverdata, updateServerData } = useContext(serverDataContext);
+
 	const navigate = useNavigate();
 	const handleFileChange = (event) => {
 		const file = event.target.files[0];
@@ -38,16 +43,26 @@ export default function AddServer({ closeModal }) {
 			const data = new FormData();
 			data.append("name", serverName);
 			data.append("img", selectedFile);
+			data.append("userId", authUser().userId);
 			data.append("isimageAppended", !selectedFile ? false : true);
 			console.log(data);
-			const response = await axios.post("https://localhost:3300/api/create", data, {
-				headers: {
-					"Content-Type": "multipart/form-data",
-				},
-			});
-			const res = response.data;
-			navigate(`/${res.server_id}/${res.general_channel_id}`);
-			closeModal();
+			axios
+				.post("https://localhost:3300/api/create/server", data, {
+					headers: {
+						"Content-Type": "multipart/form-data",
+					},
+				})
+				.then((response) => {
+					const res = response.data;
+					navigate(`/${res[0].serverId}/${res[0].generalChannelId}`);
+					closeModal();
+					console.log("ADD SERVER RES DATA", res[0]);
+					updateServerData({
+						serverId: res[0].serverId,
+						img: res[0].img,
+						name: res[0].serverName,
+					});
+				});
 		} catch (error) {
 			console.error("Error sending data:", error.message);
 		}
@@ -121,7 +136,10 @@ export default function AddServer({ closeModal }) {
 								</div>
 							</div>
 							<SmallHeading text="server name"></SmallHeading>
-							<InputDefault initial_value="𝕾𝖈𝖍𝖑𝖊𝖎𝖒𝖋𝖗𝖊𝖘𝖘𝖊's server" id="serverNameInput"></InputDefault>
+							<InputDefault
+								initial_value={`${authUser().displayName}'s server`}
+								id="serverNameInput"
+							></InputDefault>
 						</div>
 						<Footer2 back={prevPage} create={createServer}></Footer2>
 					</div>
